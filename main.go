@@ -8,15 +8,16 @@ import (
 	"net/http"
 	"time"
 )
-var order_list [] components.Order
+
+
 
 func getOrder(c *gin.Context) {
-	var order components.Order
+	var order *components.Order
 	if err := c.BindJSON(&order); err != nil {
 		return
 	}
-	order_list = append(order_list, order)
-	c.IndentedJSON(http.StatusCreated,order)
+	components.Order_list = append(components.Order_list, components.InitOrder(order))
+	c.IndentedJSON(http.StatusCreated, order)
 }
 
 func main() {
@@ -29,8 +30,9 @@ func main() {
 	const nrCooks int = 2
 	var cooks [nrCooks]*components.Cook
 	//nrApparatus := nrCooks
-	for i := 0; i <= nrCooks; i++ {
+	for i := 0; i < nrCooks; i++ {
 		cooks[i] = components.HireCook(util.RandomizeNr(3))
 	}
+	go func() { components.Cooking(nrCooks) }()
 	router.Run("localhost:8081")
 }
