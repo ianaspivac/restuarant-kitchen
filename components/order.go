@@ -13,16 +13,6 @@ type Order struct {
 var Order_list []*Order
 
 
-func InitOrder(order *Order) *Order {
-	return &Order{
-		TableId:            order.TableId,
-		OrderId:            order.OrderId,
-		WaiterId:           order.WaiterId,
-		Priority:           order.Priority,
-		MenuItemIds:        order.MenuItemIds,
-		MaxPreparationTime: order.MaxPreparationTime,
-		PickUpTime:         order.PickUpTime,
-	}
-}
+
 
 

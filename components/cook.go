@@ -10,7 +10,12 @@ import (
 	"time"
 )
 
+const NrCooks int = 2
+
+var Cooks []*Cook
+
 type Cook struct {
+	Id          int
 	Rank        int
 	Proficiency int
 	Name        string
@@ -18,49 +23,53 @@ type Cook struct {
 }
 type Rank int
 
-func HireCook(rank int) *Cook {
-	return &Cook{
-		Rank:        rank,
-		Proficiency: rank,
-		Name:        "John Johnson",
-		CatchPhrase: "No time for talking!",
+func HireCooks() {
+	for idx := 0; idx < NrCooks; idx++ {
+		Cooks = append(Cooks, &Cook{
+			Id:          idx,
+			Rank:        3,
+			Proficiency: 3,
+			Name:        "John Johnson",
+			CatchPhrase: "No time for talking!",
+		})
 	}
 }
-func Cooking(nrCooks int) {
-	var wg sync.WaitGroup
-	wg.Add(nrCooks)
-	var m sync.Mutex
-	indexOrder := 0
-	for i := 0; i < nrCooks; i++ {
-		go func(i int) {
-			defer wg.Done()
-			for {
-				if len(Order_list) > 0 {
-					m.Lock()
-					if len(Order_list) > indexOrder {
-						order := Order_list[indexOrder]
-						indexOrder++
-						m.Unlock()
-						fmt.Printf("Cook %v started preparing order\n", i)
-						time.Sleep(time.Duration(order.MaxPreparationTime) * time.Second)
-						fmt.Printf("Cook %v prepared order\n", i)
-						fmt.Printf("%+v\n", order)
-						jsonBody, err := json.Marshal(order)
-						if err != nil {
-							log.Panic(err)
-						}
-						contentType := "application/json"
-						_, err = http.Post("http://dining:8080/distribution", contentType, bytes.NewReader(jsonBody))
-						if err != nil {
-							return
-						}
-					}else {
-						m.Unlock()
-					}
-				}
-			}
-		}(i)
+func CooksManagement() {
+	for idx, _ := range Cooks {
+		go Cooks[idx].Cooking()
 	}
-	wg.Wait()
+}
+func getOrderListItem() *Order {
+	order := Order_list[0]
+	Order_list = Order_list[1:]
 
+	return order
+}
+var OrderMutex sync.Mutex
+func (c *Cook) Cooking() {
+	for {
+		OrderMutex.Lock()
+		if len(Order_list) > 0 {
+			order := getOrderListItem()
+			OrderMutex.Unlock()
+
+			fmt.Printf("Cook %d started preparing order\n", c.Id)
+			time.Sleep(time.Duration(order.MaxPreparationTime) * time.Second)
+
+			fmt.Printf("Cook %d prepared order\n", c.Id)
+			fmt.Printf("%+v\n", order)
+
+			jsonBody, err := json.Marshal(order)
+			if err != nil {
+				log.Panic(err)
+			}
+			contentType := "application/json"
+			_, err = http.Post("http://dining:8080/distribution", contentType, bytes.NewReader(jsonBody))
+			if err != nil {
+				return
+			}
+		} else {
+			OrderMutex.Unlock()
+		}
+	}
 }
