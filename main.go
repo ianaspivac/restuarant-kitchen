@@ -34,5 +34,5 @@ func main() {
 		cooks[i] = components.HireCook(util.RandomizeNr(3))
 	}
 	go func() { components.Cooking(nrCooks) }()
-	router.Run("localhost:8081")
+	router.Run(":8081")
 }

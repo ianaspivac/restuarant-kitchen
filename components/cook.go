@@ -50,7 +50,7 @@ func Cooking(nrCooks int) {
 							log.Panic(err)
 						}
 						contentType := "application/json"
-						_, err = http.Post("http://localhost:8080/distribution", contentType, bytes.NewReader(jsonBody))
+						_, err = http.Post("http://dining:8080/distribution", contentType, bytes.NewReader(jsonBody))
 						if err != nil {
 							return
 						}

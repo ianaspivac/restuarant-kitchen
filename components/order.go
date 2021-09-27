@@ -8,7 +8,6 @@ type Order struct {
 	MenuItemIds        []int   `json:"items"`
 	MaxPreparationTime float32 `json:"max_wait"`
 	PickUpTime         int64   `json:"pick_up_time"`
-	Done               bool    `json:"-"`
 }
 
 var Order_list []*Order
@@ -23,7 +22,6 @@ func InitOrder(order *Order) *Order {
 		MenuItemIds:        order.MenuItemIds,
 		MaxPreparationTime: order.MaxPreparationTime,
 		PickUpTime:         order.PickUpTime,
-		Done:               false,
 	}
 }
 
