@@ -39,11 +39,15 @@ func (f *FoodLists) GetFoodList() []FoodOrder {
 	return f.foodList
 }
 
-func (f *FoodLists) ReduceFoodList() {
+func RemoveIndex(s []FoodOrder, index int) []FoodOrder{
+	return append(s[:index], s[index+1:]...)
+}
+
+func (f *FoodLists) ReduceFoodList(idx int) {
 	f.foodListMutex.Lock()
 	defer f.foodListMutex.Unlock()
 
-	f.foodList = f.foodList[1:]
+	f.foodList = RemoveIndex(f.foodList,idx)
 }
 
 func (f *FoodLists) SetFoodList(order *Order,idx int) {
