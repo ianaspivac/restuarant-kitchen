@@ -11,6 +11,7 @@ type Order struct {
 }
 
 var Order_list []*Order
+var OrderPreparedList []*Order
 
 
 
