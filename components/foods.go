@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -14,15 +15,14 @@ type Food struct {
 }
 type FoodLists struct {
 	foodListMutex sync.Mutex
-	foodList []FoodOrder
-
+	foodList      []FoodOrder
 }
+
 var FoodList1 FoodLists
 var FoodList2 FoodLists
 var FoodList3 FoodLists
 var FoodToPrepare = 0
 var ReadyFood = make(map[int]int)
-
 
 type FoodOrder struct {
 	orderId       int
@@ -31,7 +31,6 @@ type FoodOrder struct {
 	Food
 }
 
-
 func (f *FoodLists) GetFoodList() []FoodOrder {
 	f.foodListMutex.Lock()
 	defer f.foodListMutex.Unlock()
@@ -39,7 +38,21 @@ func (f *FoodLists) GetFoodList() []FoodOrder {
 	return f.foodList
 }
 
-func RemoveIndex(s []FoodOrder, index int) []FoodOrder{
+func (f *FoodLists) SetFoodList(order *Order, idx int) {
+	f.foodListMutex.Lock()
+	defer f.foodListMutex.Unlock()
+
+	f.foodList = append(f.foodList, FoodOrder{
+		orderId:       order.OrderId,
+		orderSize:     len(order.MenuItemIds),
+		orderPriority: order.Priority,
+		Food:          Menu[idx],
+	})
+	f.SortFoodList()
+	f.AddPriority(order.Priority)
+}
+
+func RemoveIndex(s []FoodOrder, index int) []FoodOrder {
 	return append(s[:index], s[index+1:]...)
 }
 
@@ -47,30 +60,50 @@ func (f *FoodLists) ReduceFoodList(idx int) {
 	f.foodListMutex.Lock()
 	defer f.foodListMutex.Unlock()
 
-	f.foodList = RemoveIndex(f.foodList,idx)
+	f.foodList = RemoveIndex(f.foodList, idx)
 }
 
-func (f *FoodLists) SetFoodList(order *Order,idx int) {
-	f.foodListMutex.Lock()
-	defer f.foodListMutex.Unlock()
-
-	f.foodList = append(f.foodList,FoodOrder{
-		orderId:       order.OrderId,
-		orderSize:     len(order.MenuItemIds),
-		orderPriority: order.Priority,
-		Food:          Menu[idx],
+//sorting according to priority whitout changing items if priority is equal
+func (f *FoodLists) SortFoodList() {
+	sort.SliceStable(f.foodList, func(i, j int) bool {
+		return f.foodList[i].orderPriority > f.foodList[j].orderPriority
 	})
+}
+
+
+func findMin(foodList []FoodOrder) int {
+	min := 5
+	for _, val := range foodList {
+		if val.orderPriority < min {
+			min = val.orderPriority
+		}
+
+	}
+	return min
+}
+//to not get in situation where the lowest priority is never cooked
+// every time diference between added order priority and min priority is > 2
+// all items with priority <5 will have incremented priority by 1
+
+func (f *FoodLists) AddPriority(addedOrderPriority int) {
+	if (addedOrderPriority - findMin(f.foodList)) > 2 {
+		for _, val := range f.foodList {
+			if val.orderPriority != 5 {
+				val.orderPriority += 1
+			}
+		}
+	}
 }
 
 func SeparateFoods(order *Order) {
 	for _, val := range order.MenuItemIds {
 		switch Menu[val-1].complexity {
 		case 1:
-			FoodList1.SetFoodList(order,val-1)
+			FoodList1.SetFoodList(order, val-1)
 		case 2:
-			FoodList2.SetFoodList(order,val-1)
+			FoodList2.SetFoodList(order, val-1)
 		case 3:
-			FoodList3.SetFoodList(order,val-1)
+			FoodList3.SetFoodList(order, val-1)
 		default:
 			fmt.Printf("Unexpected complexity")
 		}
