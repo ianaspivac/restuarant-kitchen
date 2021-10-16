@@ -45,6 +45,7 @@ func CooksManagement() {
 	}
 }
 
+//logic for cooks rank and proficiency to prepare food
 func getOrderListItem(rank int) FoodOrder {
 	var food FoodOrder
 	if rank == 3 && len(FoodList3.GetFoodList()) > 0 {
@@ -63,10 +64,10 @@ func getOrderListItem(rank int) FoodOrder {
 	FoodToPrepare--
 	return food
 }
-
+//logic for cooking apparatus
 func findByCookingApparatus(foodList []FoodOrder) int {
 	if CookingApparatus["oven"] == 0 && CookingApparatus["stove"] == 0 {
-		if len(foodList) == 1 && foodList[0].Food.cookingApparatus != ""{
+		if len(foodList) == 1 && foodList[0].Food.cookingApparatus != "" {
 			switch foodList[0].Food.cookingApparatus {
 			case "oven":
 				{
@@ -112,28 +113,35 @@ func findByCookingApparatus(foodList []FoodOrder) int {
 	return 0
 }
 
-func addToFinishedFoods(food FoodOrder) {
-	if _, alreadyExists := ReadyFood[food.orderId]; alreadyExists {
-		ReadyFood[food.orderId]++
-	} else {
-		ReadyFood[food.orderId] = 1
-	}
-	if ReadyFood[food.orderId] == food.orderSize {
-		for idx, _ := range Order_list {
-			if Order_list[idx].OrderId == food.orderId {
-				fmt.Printf("Order was prepared: %+v\n", Order_list[idx])
-				Order_list = Order_list[1:]
-				jsonBody, err := json.Marshal(Order_list[idx])
-				if err != nil {
-					log.Panic(err)
+//sending prepared order
+func addToFinishedFoods(food FoodOrder, cookId int) {
+	for idx, _ := range ReadyFoodsList {
+		if food.orderId == ReadyFoodsList[idx].GetOrderIdReadyFoods() {
+			ReadyFoodsList[idx].AppendPreparedFood(food.id, cookId)
+			if ReadyFoodsList[idx].GetOrderSizeReadyFoods() == food.orderSize {
+				for idx, _ := range Order_list {
+					if Order_list[idx].OrderId == food.orderId {
+						orderPrepared := &OrderPrepared{
+							Order:       *Order_list[idx],
+							CookingTime: time.Now().Unix() - Order_list[idx].PickUpTime,
+							CookingDetails: ReadyFoodsList[idx].GetListReadyFoods(),
+						}
+						fmt.Printf("Prepared order: %+v\n", orderPrepared)
+						Order_list = Order_list[1:]
+						jsonBody, err := json.Marshal(orderPrepared)
+						if err != nil {
+							log.Panic(err)
+						}
+						contentType := "application/json"
+						_, err = http.Post("http://dining:8080/distribution", contentType, bytes.NewReader(jsonBody))
+						if err != nil {
+							return
+						}
+						break
+					}
 				}
-				contentType := "application/json"
-				_, err = http.Post("http://localhost:8080/distribution", contentType, bytes.NewReader(jsonBody))
-				if err != nil {
-					return
-				}
-				break
 			}
+			break
 		}
 	}
 }
@@ -168,7 +176,7 @@ func (c *Cook) Cooking() {
 			}
 
 			fmt.Printf("+Cook %d finished preparing food %+v\n", c.Id, food)
-			addToFinishedFoods(food)
+			addToFinishedFoods(food, c.Id)
 
 		} else {
 			OrderMutex.Unlock()

@@ -18,6 +18,7 @@ func getOrder(c *gin.Context) {
 	}
 
 	fmt.Printf("Recieved order to cook: %+v \n",order)
+	components.InitReadyFoods(order)
 	components.SeparateFoods(order)
 	components.Order_list = append(components.Order_list, order)
 	c.IndentedJSON(http.StatusCreated, order)

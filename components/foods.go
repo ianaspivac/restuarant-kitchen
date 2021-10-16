@@ -18,11 +18,46 @@ type FoodLists struct {
 	foodList      []FoodOrder
 }
 
+type CookFood struct {
+	FoodId int `json:"food_id"`
+	CookId int `json:"cook_id"`
+}
+
+type ReadyFoods struct {
+	orderId   int
+	orderSize int
+	foods     []CookFood
+}
+
+func (f *ReadyFoods) AppendPreparedFood(foodId int, cookId int) {
+	f.orderSize++
+	f.foods = append(f.foods, CookFood{
+		FoodId: foodId,
+		CookId: cookId,
+	})
+}
+func InitReadyFoods(order *Order) {
+	ReadyFoodsList = append(append(ReadyFoodsList, ReadyFoods{
+		orderId: order.OrderId,
+		orderSize:0,
+	}))
+
+}
+func (f *ReadyFoods) GetOrderIdReadyFoods() int {
+	return f.orderId
+}
+func (f *ReadyFoods) GetOrderSizeReadyFoods() int {
+	return f.orderSize
+}
+func (f *ReadyFoods) GetListReadyFoods() []CookFood {
+	return f.foods
+}
 var FoodList1 FoodLists
 var FoodList2 FoodLists
 var FoodList3 FoodLists
 var FoodToPrepare = 0
-var ReadyFood = make(map[int]int)
+
+var ReadyFoodsList []ReadyFoods
 
 type FoodOrder struct {
 	orderId       int
@@ -70,7 +105,6 @@ func (f *FoodLists) SortFoodList() {
 	})
 }
 
-
 func findMin(foodList []FoodOrder) int {
 	min := 5
 	for _, val := range foodList {
@@ -81,6 +115,7 @@ func findMin(foodList []FoodOrder) int {
 	}
 	return min
 }
+
 //to not get in situation where the lowest priority is never cooked
 // every time diference between added order priority and min priority is > 2
 // all items with priority <5 will have incremented priority by 1

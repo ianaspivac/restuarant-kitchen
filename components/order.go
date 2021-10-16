@@ -10,10 +10,11 @@ type Order struct {
 	PickUpTime         int64   `json:"pick_up_time"`
 }
 
+type OrderPrepared struct {
+	Order
+	CookingTime    int64      `json:"cooking_time"`
+	CookingDetails []CookFood `json:"cooking_details"`
+}
+
 var Order_list []*Order
 var OrderPreparedList []*Order
-
-
-
-
-
