@@ -49,51 +49,36 @@ func CooksManagement() {
 func getOrderListItem(rank int) FoodOrder {
 	var food FoodOrder
 	if rank == 3 && len(FoodList3.GetFoodList()) > 0 {
-		idx := findByCookingApparatus(FoodList3.GetFoodList())
-		food = FoodList3.GetFoodList()[idx]
-		FoodList3.ReduceFoodList(idx)
+		food = findByCookingApparatus(FoodList3.GetFoodList(), rank)
 	} else if rank >= 2 && len(FoodList2.GetFoodList()) > 0 {
-		idx := findByCookingApparatus(FoodList2.GetFoodList())
-		food = FoodList2.GetFoodList()[idx]
-		FoodList2.ReduceFoodList(idx)
+		food = findByCookingApparatus(FoodList2.GetFoodList(), rank)
 	} else {
-		idx := findByCookingApparatus(FoodList1.GetFoodList())
-		food = FoodList1.GetFoodList()[idx]
-		FoodList1.ReduceFoodList(idx)
+		food = findByCookingApparatus(FoodList1.GetFoodList(), rank)
 	}
-	FoodToPrepare--
 	return food
 }
-//logic for cooking apparatus
-func findByCookingApparatus(foodList []FoodOrder) int {
-	if CookingApparatus["oven"] == 0 && CookingApparatus["stove"] == 0 {
-		if len(foodList) == 1 && foodList[0].Food.cookingApparatus != "" {
-			switch foodList[0].Food.cookingApparatus {
-			case "oven":
-				{
-					semOven <- 1
-					CookingApparatus["oven"] -= 1
-				}
-			case "stove":
-				{
-					semStove <- 1
-					CookingApparatus["stove"] -= 1
-				}
-			}
-			return 0
 
-		}
-		for idx, _ := range foodList {
-			if foodList[idx].Food.cookingApparatus == "" {
-				return idx
-			}
-		}
+//logic for cooking apparatus
+func findByCookingApparatus(foodList []FoodOrder, rank int) FoodOrder {
+	var food FoodOrder
+
+	if len(foodList) == 1 && CookingApparatus["oven"] == 0 && foodList[0].Food.cookingApparatus == "oven" {
+		food = selectListByRank(rank, 0)
+		semOven <- 1
+		CookingApparatus["oven"] -= 1
+		return food
+	} else if len(foodList) == 1 && CookingApparatus["stove"] == 0 && foodList[0].Food.cookingApparatus == "stove" {
+		food = selectListByRank(rank, 0)
+		semStove <- 1
+		CookingApparatus["stove"] -= 1
+		return food
 	} else {
-		for idx, _ := range foodList {
+		for idx := range foodList {
 			if foodList[idx].Food.cookingApparatus == "" {
-				return idx
+				return selectListByRank(rank, idx)
 			} else if CookingApparatus[foodList[idx].Food.cookingApparatus] != 0 {
-				switch foodList[idx].Food.cookingApparatus {
+				food = selectListByRank(rank, idx)
+				switch food.Food.cookingApparatus {
 				case "oven":
 					{
 						semOven <- 1
@@ -105,25 +90,56 @@ func findByCookingApparatus(foodList []FoodOrder) int {
 						CookingApparatus["stove"] -= 1
 					}
 				}
-				return idx
+				return food
+			}else{
+				food = selectListByRank(rank, 0)
+				switch food.Food.cookingApparatus {
+				case "oven":
+					{
+						semOven <- 1
+						CookingApparatus["oven"] -= 1
+					}
+				case "stove":
+					{
+						semStove <- 1
+						CookingApparatus["stove"] -= 1
+					}
+				}
+				return food
 			}
 		}
 	}
+	return food
+}
 
-	return 0
+func selectListByRank(rank int, idx int) FoodOrder {
+	var food FoodOrder
+	if rank == 3 && len(FoodList3.GetFoodList()) > 0 {
+		food = FoodList3.GetFoodList()[idx]
+		FoodList3.ReduceFoodList(idx)
+	} else if rank >= 2 && len(FoodList2.GetFoodList()) > 0 {
+		food = FoodList2.GetFoodList()[idx]
+		FoodList2.ReduceFoodList(idx)
+	} else {
+		food = FoodList1.GetFoodList()[idx]
+		FoodList1.ReduceFoodList(idx)
+	}
+	FoodToPrepare--
+	defer OrderMutex.Unlock()
+	return food
 }
 
 //sending prepared order
 func addToFinishedFoods(food FoodOrder, cookId int) {
-	for idx, _ := range ReadyFoodsList {
+	for idx := range ReadyFoodsList {
 		if food.orderId == ReadyFoodsList[idx].GetOrderIdReadyFoods() {
 			ReadyFoodsList[idx].AppendPreparedFood(food.id, cookId)
 			if ReadyFoodsList[idx].GetOrderSizeReadyFoods() == food.orderSize {
 				for idx, _ := range Order_list {
 					if Order_list[idx].OrderId == food.orderId {
 						orderPrepared := &OrderPrepared{
-							Order:       *Order_list[idx],
-							CookingTime: time.Now().Unix() - Order_list[idx].PickUpTime,
+							Order:          *Order_list[idx],
+							CookingTime:    time.Now().Unix() - Order_list[idx].PickUpTime,
 							CookingDetails: ReadyFoodsList[idx].GetListReadyFoods(),
 						}
 						fmt.Printf("Prepared order: %+v\n", orderPrepared)
@@ -133,7 +149,7 @@ func addToFinishedFoods(food FoodOrder, cookId int) {
 							log.Panic(err)
 						}
 						contentType := "application/json"
-						_, err = http.Post("http://dining:8080/distribution", contentType, bytes.NewReader(jsonBody))
+						_, err = http.Post("http://localhost:8080/distribution", contentType, bytes.NewReader(jsonBody))
 						if err != nil {
 							return
 						}
@@ -162,11 +178,11 @@ func (c *Cook) Cooking() {
 		if FoodToPrepare > 0 {
 
 			food := getOrderListItem(c.Rank)
-
-			OrderMutex.Unlock()
-
 			fmt.Printf("-Cook %d started preparing food %+v\n", c.Id, food)
+
 			<-time.After(time.Duration(food.preparationTime) * time.Second)
+
+			fmt.Printf("+Cook %d finished preparing food %+v\n", c.Id, food)
 
 			CookingApparatus[food.Food.cookingApparatus] += 1
 			if food.Food.cookingApparatus == "oven" {
@@ -175,7 +191,6 @@ func (c *Cook) Cooking() {
 				<-semStove
 			}
 
-			fmt.Printf("+Cook %d finished preparing food %+v\n", c.Id, food)
 			addToFinishedFoods(food, c.Id)
 
 		} else {
